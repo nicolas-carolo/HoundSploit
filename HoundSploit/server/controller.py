@@ -28,7 +28,7 @@ from HoundSploit.server.responses.error_page import render_error_page
 from HoundSploit.server.responses.settings import render_settings
 from HoundSploit.server.responses.suggestions import render_suggestions
 from HoundSploit.server.responses.bookmarks import render_bookmarks
-from HoundSploit.server.responses.search_engine import render_home_page, render_search_results
+from HoundSploit.server.responses.search_engine import render_home_page, render_search_results, render_advanced_search_results
 from HoundSploit.searcher.engine.updates import install_updates, check_db_changes,check_software_changes, check_no_updates
 from HoundSploit.searcher.engine.bookmarks import new_bookmark, is_bookmarked, remove_bookmark
 from HoundSploit.searcher.engine.suggestions import new_suggestion, remove_suggestion
@@ -51,60 +51,46 @@ def request_search_results():
 
 
 def request_advanced_search_results():
-    vulnerability_types_list, vulnerability_platforms_list = get_vulnerability_filters()
-    if request.method == 'POST':
-        current_exploits_page = request.form['hid-e-page']
-        current_view = request.form['current-view']
-        try:
-            current_exploits_page = int(current_exploits_page)
-        except ValueError:
-            current_exploits_page = 1
+    searched_text = get_searched_text(request)
+    search_params = {
+        'current_exploits_page': get_current_exploits_page(request),
+        'current_shellcodes_page': get_current_shellcodes_page(request),
+        'current_view': get_current_results_view(request),
+        'sorting_type': get_sorting_type(request)
+    }
 
-        current_shellcodes_page = request.form['hid-s-page']
-        current_view = request.form['current-view']
-        try:
-            current_shellcodes_page = int(current_shellcodes_page)
-        except ValueError:
-            current_shellcodes_page = 1
+    # TODO fix suggestions bug
+    searched_text = substitute_with_suggestions(searched_text),
+    suggested_search_text = propose_suggestions(searched_text)
+    suggested_search_text = ""
 
-        sorting_type = request.form['sorting-type']
-
-        searched_text = request.form['searched-text']
-        # TODO fix suggestions bug
-        #searched_text = substitute_with_suggestions(searched_text),
-        #suggested_search_text = propose_suggestions(searched_text)
-        suggested_search_text = ""
-
-        filters = {
-            "operator": request.form['search-operator'],
-            "author": request.form['author'],
-            "type": request.form['type'],
-            "platform": request.form['platform'],
-            "port": request.form['port'],
-            "date_from": request.form['date-from'],
-            "date_to": request.form['date-to'],
-        }
+    filters = {
+        "operator": request.form['search-operator'],
+        "author": request.form['author'],
+        "type": request.form['type'],
+        "platform": request.form['platform'],
+        "port": request.form['port'],
+        "date_from": request.form['date-from'],
+        "date_to": request.form['date-to'],
+    }
         
         
-        if str(searched_text).isspace() or searched_text == "":
-            return render_template('advanced_searcher.html',
-                                vulnerability_types_list=vulnerability_types_list,
-                                vulnerability_platforms_list=vulnerability_platforms_list,
-                                current_exploits_page=1,
-                                current_shellcodes_page=1, sorting_type="Most recent")
-        key_words_list = (str(searched_text).upper()).split()
+    if str(searched_text).isspace() or searched_text == "":
+        return render_home_page()
 
-        date_alert = None
-        try:
-            date_from = datetime.datetime.strptime(filters["date_from"], '%Y-%m-%d')
-            date_to = datetime.datetime.strptime(filters["date_to"], '%Y-%m-%d')
-            if date_from > date_to:
-                filters["date_from"] = "mm/dd/yyyy"
-                filters["date_to"] = "mm/dd/yyyy"
-                date_alert = "ERROR: date range not valid!"
-        except ValueError:
+    date_alert = None
+    try:
+        date_from = datetime.datetime.strptime(filters["date_from"], '%Y-%m-%d')
+        date_to = datetime.datetime.strptime(filters["date_to"], '%Y-%m-%d')
+        if date_from > date_to:
             filters["date_from"] = "mm/dd/yyyy"
             filters["date_to"] = "mm/dd/yyyy"
+            date_alert = "ERROR: date range not valid!"
+    except ValueError:
+        filters["date_from"] = "mm/dd/yyyy"
+        filters["date_to"] = "mm/dd/yyyy"
+
+    return render_search_results(searched_text, search_params)
 
         exploits_list = Exploit.advanced_search(searched_text, filters)
         exploits_list = sort_results(exploits_list, sorting_type)
@@ -172,14 +158,6 @@ def request_advanced_search_results():
                             current_shellcodes_page=current_shellcodes_page,
                             last_shellcodes_page=last_shellcodes_page,
                             sorting_type=sorting_type
-                            )
-    else:
-        return render_template('advanced_searcher.html',
-                            vulnerability_types_list=vulnerability_types_list,
-                            vulnerability_platforms_list=vulnerability_platforms_list,
-                            current_exploits_page=1,
-                            current_shellcodes_page=1,
-                            sorting_type="Most recent"
                             )
 
 

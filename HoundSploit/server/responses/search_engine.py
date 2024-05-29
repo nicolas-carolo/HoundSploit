@@ -37,8 +37,63 @@ def render_search_results(searched_text, search_params):
                         last_shellcodes_page=last_shellcodes_page, sorting_type=sorting_type)
 
 
+def render_advanced_search_results(searched_text, search_params, filters):
+    vulnerability_types_list, vulnerability_platforms_list = get_vulnerability_filters()
+    
+    current_exploits_page = search_params['current_exploits_page']
+    current_shellcodes_page = search_params['current_shellcodes_page']
+    current_view = search_params['current_view']
+    sorting_type = search_params['sorting_type']
+    searched_text = substitute_with_suggestions(searched_text)
+    suggested_search_text = propose_suggestions(searched_text)
+    key_words_list = (str(searched_text).upper()).split()
+    exploits_list, n_exploits, last_exploits_page = get_exploit_results(searched_text, sorting_type, current_exploits_page)
+    shellcodes_list, n_shellcodes, last_shellcodes_page = get_shellcode_results(searched_text, sorting_type, current_shellcodes_page)
+    exploits_list, shellcodes_list = highlight_keywords_if_searched_text_is_numeric(searched_text, exploits_list, shellcodes_list)
+    exploits_list = highlight_keywords_in_description(key_words_list, exploits_list)
+    shellcodes_list = highlight_keywords_in_description(key_words_list, shellcodes_list)
+
+    return render_template('advanced_results_table.html',
+                            searched_item=searched_text,
+                            exploits_list=exploits_list,
+                            shellcodes_list=shellcodes_list,
+                            searched_text=searched_text,
+                            vulnerability_types_list=vulnerability_types_list,
+                            vulnerability_platforms_list=vulnerability_platforms_list,
+                            operator_filter=filters["operator"],
+                            author_filter=filters["author"],
+                            type_filter=filters["type"],
+                            platform_filter=filters["platform"],
+                            port_filter=filters["port"],
+                            date_from_filter=filters["date_from"],
+                            date_to_filter=filters["date_to"],
+                            suggested_search_text=suggested_search_text,
+                            date_alert=date_alert,
+                            n_exploits=n_exploits,
+                            current_exploits_page=current_exploits_page,
+                            last_exploits_page=last_exploits_page,
+                            current_view=current_view,
+                            n_shellcodes=n_shellcodes,
+                            current_shellcodes_page=current_shellcodes_page,
+                            last_shellcodes_page=last_shellcodes_page,
+                            sorting_type=sorting_type)
+
+
 def get_exploit_results(searched_text, sorting_type, current_exploits_page):
     exploits_list = Exploit.search(searched_text)
+    exploits_list = sort_results(exploits_list, sorting_type)
+    n_exploits = len(exploits_list)
+    last_exploits_page = get_n_needed_pages_for_showing_results(n_exploits)
+    if current_exploits_page > last_exploits_page:
+        current_exploits_page = last_exploits_page
+    index_first_result = get_index_first_result(current_exploits_page)
+    index_last_result = get_index_last_result(index_first_result)
+    exploits_list = exploits_list[index_first_result:index_last_result]
+    exploits_list = normalize_exploit_results(exploits_list)
+    return exploits_list, n_exploits, last_exploits_page
+
+def get_advanced_exploit_results(searched_text, sorting_type, current_exploits_page, filters):
+    exploits_list = Exploit.advanced_search(searched_text, filters)
     exploits_list = sort_results(exploits_list, sorting_type)
     n_exploits = len(exploits_list)
     last_exploits_page = get_n_needed_pages_for_showing_results(n_exploits)
@@ -53,6 +108,19 @@ def get_exploit_results(searched_text, sorting_type, current_exploits_page):
 
 def get_shellcode_results(searched_text, sorting_type, current_shellcodes_page):
     shellcodes_list = Shellcode.search(searched_text)
+    shellcodes_list = sort_results(shellcodes_list, sorting_type)
+    n_shellcodes = len(shellcodes_list)
+    last_shellcodes_page = get_n_needed_pages_for_showing_results(n_shellcodes)
+    if current_shellcodes_page > last_shellcodes_page:
+        current_shellcodes_page = last_shellcodes_page
+    index_first_result = get_index_first_result(current_shellcodes_page)
+    index_last_result = get_index_last_result(index_first_result)
+    shellcodes_list = shellcodes_list[index_first_result:index_last_result]
+    return shellcodes_list, n_shellcodes, last_shellcodes_page
+
+
+def get_advanced_shellcode_results(searched_text, sorting_type, current_shellcodes_page, filters):
+    shellcodes_list = Shellcode.advanced_search(searched_text)
     shellcodes_list = sort_results(shellcodes_list, sorting_type)
     n_shellcodes = len(shellcodes_list)
     last_shellcodes_page = get_n_needed_pages_for_showing_results(n_shellcodes)
