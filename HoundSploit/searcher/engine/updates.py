@@ -22,7 +22,7 @@ def install_updates():
         installer_command = INSTALLER_CMD[operating_system]
         os.system(installer_command)
     except KeyError:
-        printf("ERROR: System not supported")
+        print("ERROR: System not supported")
         exit(1)
 
 

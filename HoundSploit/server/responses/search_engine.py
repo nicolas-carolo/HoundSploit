@@ -1,9 +1,10 @@
+import datetime
 from flask import render_template
 from HoundSploit.searcher.engine.suggestions import propose_suggestions, substitute_with_suggestions
 from HoundSploit.searcher.entities.exploit import Exploit
 from HoundSploit.searcher.entities.shellcode import Shellcode
 from HoundSploit.searcher.engine.sorter import sort_results
-from HoundSploit.searcher.utils.searcher import get_n_needed_pages_for_showing_results
+from HoundSploit.searcher.utils.searcher import get_n_needed_pages_for_showing_results, get_vulnerability_filters
 from HoundSploit.searcher.utils.constants import N_RESULTS_FOR_PAGE
 from HoundSploit.searcher.engine.keywords_highlighter import highlight_keywords_in_description, highlight_keywords_in_file, \
     highlight_keywords_in_port
@@ -13,6 +14,12 @@ from HoundSploit.searcher.utils.searcher import get_index_first_result, get_inde
 
 def render_home_page():
     return render_template('home.html', current_exploits_page=1, current_shellcodes_page=1, sorting_type="Most recent")
+
+def render_advanced_home_page():
+    vulnerability_types_list, vulnerability_platforms_list = get_vulnerability_filters()
+    return render_template('advanced_searcher.html', vulnerability_types_list=vulnerability_types_list,
+                                   vulnerability_platforms_list=vulnerability_platforms_list, current_exploits_page=1,
+                                   current_shellcodes_page=1, sorting_type="Most recent")
 
 
 def render_search_results(searched_text, search_params):
@@ -39,6 +46,18 @@ def render_search_results(searched_text, search_params):
 
 def render_advanced_search_results(searched_text, search_params, filters):
     vulnerability_types_list, vulnerability_platforms_list = get_vulnerability_filters()
+
+    date_alert = None
+    try:
+        date_from = datetime.datetime.strptime(filters["date_from"], '%Y-%m-%d')
+        date_to = datetime.datetime.strptime(filters["date_to"], '%Y-%m-%d')
+        if date_from > date_to:
+            filters["date_from"] = "mm/dd/yyyy"
+            filters["date_to"] = "mm/dd/yyyy"
+            date_alert = "ERROR: date range not valid!"
+    except ValueError:
+        filters["date_from"] = "mm/dd/yyyy"
+        filters["date_to"] = "mm/dd/yyyy"
     
     current_exploits_page = search_params['current_exploits_page']
     current_shellcodes_page = search_params['current_shellcodes_page']
@@ -47,8 +66,8 @@ def render_advanced_search_results(searched_text, search_params, filters):
     searched_text = substitute_with_suggestions(searched_text)
     suggested_search_text = propose_suggestions(searched_text)
     key_words_list = (str(searched_text).upper()).split()
-    exploits_list, n_exploits, last_exploits_page = get_exploit_results(searched_text, sorting_type, current_exploits_page)
-    shellcodes_list, n_shellcodes, last_shellcodes_page = get_shellcode_results(searched_text, sorting_type, current_shellcodes_page)
+    exploits_list, n_exploits, last_exploits_page = get_advanced_exploit_results(searched_text, sorting_type, current_exploits_page, filters)
+    shellcodes_list, n_shellcodes, last_shellcodes_page = get_advanced_shellcode_results(searched_text, sorting_type, current_shellcodes_page, filters)
     exploits_list, shellcodes_list = highlight_keywords_if_searched_text_is_numeric(searched_text, exploits_list, shellcodes_list)
     exploits_list = highlight_keywords_in_description(key_words_list, exploits_list)
     shellcodes_list = highlight_keywords_in_description(key_words_list, shellcodes_list)
@@ -120,7 +139,7 @@ def get_shellcode_results(searched_text, sorting_type, current_shellcodes_page):
 
 
 def get_advanced_shellcode_results(searched_text, sorting_type, current_shellcodes_page, filters):
-    shellcodes_list = Shellcode.advanced_search(searched_text)
+    shellcodes_list = Shellcode.advanced_search(searched_text, filters)
     shellcodes_list = sort_results(shellcodes_list, sorting_type)
     n_shellcodes = len(shellcodes_list)
     last_shellcodes_page = get_n_needed_pages_for_showing_results(n_shellcodes)

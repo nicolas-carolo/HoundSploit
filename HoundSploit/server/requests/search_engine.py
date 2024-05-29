@@ -49,3 +49,17 @@ def get_sorting_type(request):
     if request.method == 'POST':
         sorting_type = request.form['sorting-type']
         return sorting_type
+
+
+def get_search_filters(request):
+    if request.method == 'POST':
+        filters = {
+            "operator": request.form['search-operator'],
+            "author": request.form['author'],
+            "type": request.form['type'],
+            "platform": request.form['platform'],
+            "port": request.form['port'],
+            "date_from": request.form['date-from'],
+            "date_to": request.form['date-to'],
+        }
+        return filters

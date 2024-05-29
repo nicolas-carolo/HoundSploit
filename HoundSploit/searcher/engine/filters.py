@@ -1,5 +1,5 @@
 import datetime
-from HoundSploit.searcher.utils.string import str_contains_num_version_range_with_x, str_contains_num_version_range
+from HoundSploit.searcher.utils.string import str_contains_num_version_range_with_x, str_contains_num_version_range, string_contains
 
 
 def filter_vulnerabilities(vulnerabilities_list, filters):
@@ -23,7 +23,7 @@ def filter_vulnerabilities(vulnerabilities_list, filters):
 def filter_vulnerabilities_for_author(vulnerabilities_list, author_filter):
     output_list = []
     for vulnerability in vulnerabilities_list:
-        if vulnerability.author == author_filter:
+        if string_contains(vulnerability.author, author_filter):
             output_list.append(vulnerability)
     return output_list
 
